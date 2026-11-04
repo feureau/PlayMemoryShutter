@@ -10,6 +10,7 @@ public class ShutterInterceptService extends Service {
 
     private CameraController cameraController;
     private InputHandler inputHandler;
+    private boolean isInitialized = false;
 
     @Override
     public void onCreate() {
@@ -21,8 +22,10 @@ public class ShutterInterceptService extends Service {
             cameraController.open();
 
             inputHandler = new InputHandler(this, cameraController);
-            inputHandler.startListening();
+            cameraController.setInputHandler(inputHandler);
 
+            inputHandler.startListening();
+            isInitialized = true;
             Log.i(TAG, "Hardware successfully hooked.");
         } catch (Exception e) {
             Log.e(TAG, "Failed to initialize hardware hooks", e);
@@ -31,7 +34,10 @@ public class ShutterInterceptService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        // Keeps the service running in the background until explicitly stopped
+        if (!isInitialized && inputHandler != null) {
+            inputHandler.startListening();
+            isInitialized = true;
+        }
         return START_STICKY;
     }
 
@@ -52,6 +58,6 @@ public class ShutterInterceptService extends Service {
 
     @Override
     public IBinder onBind(Intent intent) {
-        return null; // Not binding to UI
+        return null;
     }
 }

@@ -33,4 +33,14 @@ public class BootReceiver extends BroadcastReceiver {
             }
         }
     }
+
+    public static void cancelScheduledStart(Context context) {
+        Log.i(TAG, "Canceling scheduled service start (if any)");
+        AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        Intent serviceIntent = new Intent(context, ShutterInterceptService.class);
+        PendingIntent pi = PendingIntent.getService(context, 0, serviceIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+        if (am != null) {
+            am.cancel(pi);
+        }
+    }
 }

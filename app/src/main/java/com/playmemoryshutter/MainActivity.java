@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.view.KeyEvent;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -19,6 +20,9 @@ public class MainActivity extends Activity {
     public static final String KEY_DELAY_SECONDS = "delay_seconds";
     public static final String KEY_SHUTTER_MODE = "shutter_mode";
     public static final String KEY_VIDEO_BTN_MODE = "video_btn_mode";
+
+    private static final int ISV_KEY_MENU = 514;
+    private static final int ISV_KEY_DELETE = 595;
 
     private CheckBox chkAutoStart;
     private Spinner spinDelay;
@@ -47,6 +51,7 @@ public class MainActivity extends Activity {
                 saveSettings();
                 startService(new Intent(MainActivity.this, ShutterInterceptService.class));
                 Toast.makeText(MainActivity.this, "Settings Saved & Service Started", Toast.LENGTH_SHORT).show();
+                finish(); // Exit cleanly
             }
         });
 
@@ -54,9 +59,26 @@ public class MainActivity extends Activity {
             @Override
             public void onClick(View v) {
                 stopService(new Intent(MainActivity.this, ShutterInterceptService.class));
+                BootReceiver.cancelScheduledStart(MainActivity.this); // Cancel pending boot alarm
                 Toast.makeText(MainActivity.this, "Service Stopped", Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Stop intercept service if it is running to ensure it doesn't steal D-pad focus
+        stopService(new Intent(this, ShutterInterceptService.class));
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (keyCode == ISV_KEY_MENU || keyCode == ISV_KEY_DELETE || keyCode == KeyEvent.KEYCODE_BACK) {
+            finish();
+            return true;
+        }
+        return super.onKeyDown(keyCode, event);
     }
 
     private void setupSpinners() {
@@ -86,11 +108,16 @@ public class MainActivity extends Activity {
     }
 
     private void saveSettings() {
+        boolean autoStart = chkAutoStart.isChecked();
         SharedPreferences.Editor editor = prefs.edit();
-        editor.putBoolean(KEY_AUTO_START, chkAutoStart.isChecked());
+        editor.putBoolean(KEY_AUTO_START, autoStart);
         editor.putInt(KEY_DELAY_SECONDS, (Integer) spinDelay.getSelectedItem());
         editor.putInt(KEY_SHUTTER_MODE, spinShutter.getSelectedItemPosition());
         editor.putInt(KEY_VIDEO_BTN_MODE, spinVideoBtn.getSelectedItemPosition());
         editor.apply();
+
+        if (!autoStart) {
+            BootReceiver.cancelScheduledStart(this);
+        }
     }
 }
